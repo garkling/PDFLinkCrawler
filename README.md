@@ -1,18 +1,18 @@
-## A simple PDF link crawler
+# A simple PDF link crawler
 
-# Init
+## Init
 Create a virtual environment: 
 - `ENV_NAME=<env_name>`
 - `python3 -m venv $ENV_NAME`
 - `source $ENV_NAME/bin/activate`
 - `pip install -r requirements.txt`
 
-# Important settings
+## Important settings
 - `ROBOTSTXT_OBEY = True` - always keep `True`
 - `DOWNLOAD_DELAY = 0.1` - `100ms` delay between request, adjust
 - `DEFAULT_URL_SCHEME_ON_MISSING = "https://"` - you can change to `http://`
 
-# Run
+## Run
 In the `pdfcrawler` directory in the virtual env: 
 - `scrapy crawl pdfs -o <savefilename>.[json|jsonl] -a start_urls="<your_url1>","<your_url2>" -a all_subdomains=[True|False]`
   - `start_urls` are your entry URLs to begin with
@@ -28,7 +28,7 @@ Examples:
 2. `scrapy crawl pdfs -o sot_pdfs.json -a start_urls="https://seaofthieves.fandom.com/wiki/Fishing" -a all_subdomains=False`
 
 
-# TODO List
+## TODO List
 - [x] The default crawler
 - [ ] An LLM integration
 - [ ] A RDS auto-upload
