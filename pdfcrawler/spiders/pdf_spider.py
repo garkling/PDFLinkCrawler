@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from urllib.parse import urlparse
@@ -10,6 +11,8 @@ from scrapy.link import Link
 from scrapy.linkextractors import LinkExtractor, IGNORED_EXTENSIONS
 
 from ..settings import DEFAULT_URL_SCHEME_ON_MISSING
+
+IGNORED_EXTENSIONS = {*IGNORED_EXTENSIONS, "pkg"}
 
 
 logger = logging.getLogger("scrapy.pdfs")
@@ -36,7 +39,21 @@ class PDFLinkSpider(scrapy.Spider):
         )
 
     def parse(self, response: Response, **kwargs: Any) -> Any:
-        for link in self.le.extract_links(response):
+        script_links = set()
+        script_tag = response.css("script[type='application/json']::text").extract()
+
+        # search in the <script> tags because of the dynamic content loading
+        for pdf_links, other_links in self.parse_json(script_tag):
+            script_links = {*script_links, *other_links}
+            for link in pdf_links:
+                yield dict(link=response.urljoin(link))
+
+        page_links = {
+            *self.le.extract_links(response),
+            *(Link(response.urljoin(sl)) for sl in script_links)
+        }
+
+        for link in page_links:
             link: Link
             url = link.url
             if url.endswith('.' + self.EXTENSION):
@@ -45,6 +62,14 @@ class PDFLinkSpider(scrapy.Spider):
             else:
                 # kinda a light request just to check a type without downloading the content
                 yield response.follow(url, method="HEAD", callback=self.parse_item)
+
+    def parse_json(self, script_bodies):
+        for raw in script_bodies:
+            try:
+                data = json.loads(raw)
+                yield self.extract_pdf_links_from_json(data)
+            except json.decoder.JSONDecodeError:
+                logger.error(f"Invalid JSON in <script> tag - {raw[:30]}...{raw[30:]}")
 
     def parse_item(self, response: Response) -> Any:
         url = response.url
@@ -55,6 +80,29 @@ class PDFLinkSpider(scrapy.Spider):
         else:
             # a complete GET request after the HEAD one
             yield response.follow(url, callback=self.parse, dont_filter=True)
+
+    def extract_pdf_links_from_json(self, data: dict, pdf_links=None, other_links=None):
+        """
+        Recursively extracts all links from all the <script type="application/json"> JSON bodies on the page
+        """
+        if pdf_links is None: pdf_links = set()
+        if other_links is None: other_links = set()
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                self.extract_pdf_links_from_json(value, pdf_links, other_links)
+        elif isinstance(data, list):
+            for item in data:
+                self.extract_pdf_links_from_json(item, pdf_links, other_links)
+        elif isinstance(data, str):
+            _, netloc, path, *_ = urlparse(data)
+            if netloc and path:
+                if path.endswith('.' + self.EXTENSION):
+                    pdf_links.add(data)
+                else:
+                    other_links.add(data)
+
+        return pdf_links, other_links
 
     @staticmethod
     def _prep_start_urls(urls: str) -> list:
@@ -81,5 +129,4 @@ class PDFLinkSpider(scrapy.Spider):
         ) if all_subdomains else map(
             lambda u: urlparse(u).netloc, self.start_urls
         )
-
         return list(set(allowed))

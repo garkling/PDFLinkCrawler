@@ -8,7 +8,7 @@ Create a virtual environment:
 - `pip install -r requirements.txt`
 
 ## Important settings
-- `ROBOTSTXT_OBEY = True` - always keep `True`
+- `ROBOTSTXT_OBEY = True` - can be `False`, but use responsibly
 - `DOWNLOAD_DELAY = 0.1` - `100ms` delay between request, adjust
 - `DEFAULT_URL_SCHEME_ON_MISSING = "https://"` - you can change to `http://`
 
@@ -27,6 +27,13 @@ Examples:
 1. `scrapy crawl pdfs -o dektec_pdfs.json -a start_urls="www.dektec.com" -a all_subdomains=True`
 2. `scrapy crawl pdfs -o sot_pdfs.json -a start_urls="https://seaofthieves.fandom.com/wiki/Fishing" -a all_subdomains=False`
 
+The given `result.jsonl` was crawled from the command below: 
+```shell
+scrapy crawl pdfs \ 
+  -o result.jsonl \ 
+  -a start_urls="https://cardosystems.com/pages/support/home","https://cardo-systems-store.myshopify.com" \ 
+  -a all_subdomains=False
+```
 
 ## TODO List
 - [x] The default crawler
